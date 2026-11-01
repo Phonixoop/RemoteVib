@@ -271,6 +271,7 @@ const state = {
   vibeEnabled: false,
   hostSelfVibe: true,
   vibeTimer: null,
+  vibeSyncTimer: null,
   sendTimer: null,
   dragging: false,
   language: "en",
@@ -531,6 +532,10 @@ function stopHeartbeat() {
 function disconnect() {
   stopHeartbeat();
   stopVibration();
+  if (state.vibeSyncTimer) {
+    clearTimeout(state.vibeSyncTimer);
+    state.vibeSyncTimer = null;
+  }
   if (state.sendTimer) {
     clearTimeout(state.sendTimer);
     state.sendTimer = null;
@@ -564,9 +569,10 @@ function handleMessage(msg) {
     return;
   }
   if (msg.type === "reaction") {
+    const display = resolveReactionDisplay(msg);
     showReactionToast({
-      emoji: msg.emoji,
-      text: msg.text,
+      emoji: display.emoji,
+      text: display.text,
       from: msg.from,
       outgoing: false,
     });
@@ -607,8 +613,6 @@ function renderReactions() {
       btn.type = "button";
       btn.className = "reaction-chip";
       btn.setAttribute("role", "listitem");
-      btn.dataset.emoji = item.emoji;
-      btn.dataset.text = item.text;
 
       const emoji = document.createElement("span");
       emoji.className = "reaction-emoji";
@@ -618,7 +622,7 @@ function renderReactions() {
       label.textContent = item.text;
 
       btn.append(emoji, label);
-      btn.addEventListener("click", () => sendReaction(item.emoji, item.text));
+      btn.addEventListener("click", () => sendReaction(item));
       return btn;
     }),
   );
@@ -635,13 +639,49 @@ function showReactionForm() {
   els.reactionEmoji.focus();
 }
 
-function sendReaction(emoji, text) {
-  const cleanEmoji = String(emoji || "").trim().slice(0, 8);
-  const cleanText = String(text || "").trim().slice(0, 40);
-  if (!cleanEmoji && !cleanText) return;
+function resolveReactionDisplay(msg) {
+  if (msg && typeof msg.id === "string") {
+    const builtin = BUILTIN_REACTIONS.find((item) => item.id === msg.id);
+    if (builtin) {
+      return { emoji: builtin.emoji, text: t(builtin.labelKey) };
+    }
+  }
+  return {
+    emoji: typeof msg?.emoji === "string" && msg.emoji ? msg.emoji : "💬",
+    text: typeof msg?.text === "string" ? msg.text : "",
+  };
+}
+
+function sendReaction(item) {
+  if (!item) return;
+
+  // Predefined: language-agnostic id. Receiver translates locally.
+  if (!item.custom && item.id) {
+    const display = resolveReactionDisplay({ id: item.id });
+    showReactionToast({
+      emoji: display.emoji,
+      text: display.text,
+      from: state.role,
+      outgoing: true,
+    });
+    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+    state.ws.send(
+      JSON.stringify({
+        type: "reaction",
+        id: item.id,
+        emoji: item.emoji,
+      }),
+    );
+    return;
+  }
+
+  // Custom: send literal text as typed (no translation).
+  const cleanEmoji = String(item.emoji || "").trim().slice(0, 8) || "💬";
+  const cleanText = String(item.text || "").trim().slice(0, 40);
+  if (!cleanText) return;
 
   showReactionToast({
-    emoji: cleanEmoji || "💬",
+    emoji: cleanEmoji,
     text: cleanText,
     from: state.role,
     outgoing: true,
@@ -651,7 +691,7 @@ function sendReaction(emoji, text) {
   state.ws.send(
     JSON.stringify({
       type: "reaction",
-      emoji: cleanEmoji || "💬",
+      emoji: cleanEmoji,
       text: cleanText,
     }),
   );
@@ -762,9 +802,11 @@ function setIntensityFromPointer(clientY) {
   state.intensity = intensity;
   if (intensity > 0 && !state.active) state.active = true;
   if (intensity === 0) state.active = false;
+  // Keep drag path light: paint only + throttled WS send.
+  // Host/client motor feedback is driven by the vibe loop, not every move.
   renderControls();
-  syncLocalVibration();
   scheduleSend();
+  scheduleVibeSync();
 }
 
 function buildPattern(mode, intensity) {
@@ -811,21 +853,42 @@ function shouldVibrateLocally() {
   return false;
 }
 
-function syncLocalVibration() {
-  if (shouldVibrateLocally()) startVibrationLoop();
-  else stopVibration();
+function scheduleVibeSync() {
+  if (state.vibeSyncTimer) return;
+  state.vibeSyncTimer = setTimeout(() => {
+    state.vibeSyncTimer = null;
+    syncLocalVibration();
+  }, 120);
+}
+
+function syncLocalVibration({ restart = false } = {}) {
+  if (!shouldVibrateLocally()) {
+    stopVibration();
+    return;
+  }
+  // Intensity changes are picked up by the next loop tick — do not
+  // stop/restart navigator.vibrate on every slider update.
+  if (restart && state.vibeTimer != null) {
+    stopVibration(false);
+  }
+  if (state.vibeTimer == null) startVibrationLoop();
 }
 
 function startVibrationLoop() {
-  stopVibration(false);
+  if (state.vibeTimer != null) return;
   if (!shouldVibrateLocally()) return;
 
   const tick = () => {
+    state.vibeTimer = null;
     if (!shouldVibrateLocally()) {
       stopVibration();
       return;
     }
     const pattern = buildPattern(state.mode, state.intensity);
+    if (pattern.length === 0) {
+      stopVibration();
+      return;
+    }
     navigator.vibrate(pattern);
     const duration = pattern.reduce((sum, n) => sum + n, 0) || 300;
     state.vibeTimer = setTimeout(tick, Math.max(120, duration));
@@ -1001,7 +1064,7 @@ els.modeButtons.forEach((btn) => {
       state.active = state.intensity > 0;
       scheduleSend();
     }
-    syncLocalVibration();
+    syncLocalVibration({ restart: true });
   });
 });
 
@@ -1010,7 +1073,7 @@ els.btnToggle.addEventListener("click", () => {
   state.active = !state.active;
   if (state.active && state.intensity === 0) state.intensity = 35;
   renderControls();
-  syncLocalVibration();
+  syncLocalVibration({ restart: true });
   sendControl();
 });
 
@@ -1095,6 +1158,7 @@ function onPointerUp(event) {
     // ignore
   }
   sendControl();
+  syncLocalVibration();
 }
 
 els.sliderTrack.addEventListener("pointerdown", onPointerDown);
