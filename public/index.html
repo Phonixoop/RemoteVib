@@ -10,12 +10,31 @@
     <meta
       name="description"
       content="Connect two phones. Control vibration remotely."
+      data-i18n="meta.description"
+      data-i18n-attr="content"
     />
-    <title>RemoteVib</title>
+    <title data-i18n="meta.title">RemoteVib</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem("remotevib-theme");
+          var dark =
+            theme === "dark" ||
+            (theme !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          var lang = localStorage.getItem("remotevib-lang");
+          if (lang === "en" || lang === "fa" || lang === "ru") {
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=Vazirmatn:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
@@ -23,29 +42,56 @@
   <body>
     <div class="atmosphere" aria-hidden="true"></div>
 
+    <div class="prefs" role="group" aria-label="Preferences">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">
+          EN
+        </button>
+        <button type="button" class="lang-btn" data-lang="fa" aria-pressed="false">
+          FA
+        </button>
+        <button type="button" class="lang-btn" data-lang="ru" aria-pressed="false">
+          RU
+        </button>
+      </div>
+      <button
+        type="button"
+        class="theme-btn"
+        id="btn-theme"
+        aria-pressed="false"
+        data-i18n="prefs.themeDark"
+        data-i18n-attr="aria-label"
+        title="Dark"
+      >
+        <span class="theme-icon theme-icon-moon" aria-hidden="true"></span>
+        <span class="theme-icon theme-icon-sun" aria-hidden="true"></span>
+        <span class="theme-label" data-i18n="prefs.themeDark">Dark</span>
+      </button>
+    </div>
+
     <main class="shell">
       <section id="view-home" class="view view-home">
         <p class="brand">RemoteVib</p>
-        <h1>Two phones.<br />One pulse.</h1>
-        <p class="lede">
+        <h1 data-i18n-html="home.title">Two phones.<br />One pulse.</h1>
+        <p class="lede" data-i18n="home.lede">
           Host a room on one phone, join on the other, then drag the handle to
           control vibration live.
         </p>
         <div class="cta-row">
-          <button type="button" class="btn btn-primary" id="btn-host">
+          <button type="button" class="btn btn-primary" id="btn-host" data-i18n="home.host">
             Host a room
           </button>
-          <button type="button" class="btn btn-ghost" id="btn-join">
+          <button type="button" class="btn btn-ghost" id="btn-join" data-i18n="home.join">
             Join a room
           </button>
         </div>
       </section>
 
       <section id="view-join" class="view view-join hidden">
-        <button type="button" class="back" data-back>← Back</button>
+        <button type="button" class="back" data-back data-i18n="join.back">← Back</button>
         <p class="brand brand-sm">RemoteVib</p>
-        <h2>Enter room code</h2>
-        <p class="lede">Ask the host for their 6-character code.</p>
+        <h2 data-i18n="join.title">Enter room code</h2>
+        <p class="lede" data-i18n="join.lede">Ask the host for their 6-character code.</p>
         <form id="join-form" class="join-form">
           <input
             id="join-code"
@@ -55,9 +101,13 @@
             autocapitalize="characters"
             maxlength="8"
             placeholder="AB12CD"
+            data-i18n="join.placeholder"
+            data-i18n-attr="placeholder"
             required
           />
-          <button type="submit" class="btn btn-primary">Connect</button>
+          <button type="submit" class="btn btn-primary" data-i18n="join.connect">
+            Connect
+          </button>
         </form>
       </section>
 
@@ -71,19 +121,25 @@
               <span id="room-label" class="room-code">------</span>
             </p>
           </div>
-          <button type="button" class="btn btn-tiny" id="btn-leave">Leave</button>
+          <button type="button" class="btn btn-tiny" id="btn-leave" data-i18n="session.leave">
+            Leave
+          </button>
         </header>
 
         <div class="status-bar" id="status-bar">
-          <span class="status-pill" id="status-connection">Connecting…</span>
-          <span class="status-pill" id="status-peer">Waiting for peer</span>
+          <span class="status-pill" id="status-connection" data-i18n="status.connecting">
+            Connecting…
+          </span>
+          <span class="status-pill" id="status-peer" data-i18n="status.waitingPeer">
+            Waiting for peer
+          </span>
         </div>
 
         <div id="host-panel" class="panel host-panel hidden">
           <div class="slider-stage">
             <div class="intensity-readout">
               <span id="intensity-value">0</span>
-              <small>intensity</small>
+              <small data-i18n="host.intensity">intensity</small>
             </div>
             <div
               class="slider-track"
@@ -93,6 +149,8 @@
               aria-valuemax="100"
               aria-valuenow="0"
               aria-label="Vibration intensity"
+              data-i18n="host.sliderAria"
+              data-i18n-attr="aria-label"
               tabindex="0"
             >
               <div class="slider-fill" id="slider-fill"></div>
@@ -106,28 +164,53 @@
             </div>
           </div>
 
-          <div class="modes" role="radiogroup" aria-label="Vibration mode">
-            <button type="button" class="mode active" data-mode="continuous">
+          <div
+            class="modes"
+            role="radiogroup"
+            aria-label="Vibration mode"
+            data-i18n="host.modesAria"
+            data-i18n-attr="aria-label"
+          >
+            <button
+              type="button"
+              class="mode active"
+              data-mode="continuous"
+              data-i18n="mode.continuous"
+            >
               Continuous
             </button>
-            <button type="button" class="mode" data-mode="pulse">Pulse</button>
-            <button type="button" class="mode" data-mode="wave">Wave</button>
-            <button type="button" class="mode" data-mode="heartbeat">
+            <button type="button" class="mode" data-mode="pulse" data-i18n="mode.pulse">
+              Pulse
+            </button>
+            <button type="button" class="mode" data-mode="wave" data-i18n="mode.wave">
+              Wave
+            </button>
+            <button
+              type="button"
+              class="mode"
+              data-mode="heartbeat"
+              data-i18n="mode.heartbeat"
+            >
               Heartbeat
             </button>
-            <button type="button" class="mode" data-mode="staccato">
+            <button
+              type="button"
+              class="mode"
+              data-mode="staccato"
+              data-i18n="mode.staccato"
+            >
               Staccato
             </button>
           </div>
 
           <div class="host-actions">
-            <button type="button" class="btn btn-primary" id="btn-toggle">
+            <button type="button" class="btn btn-primary" id="btn-toggle" data-i18n="host.start">
               Start
             </button>
-            <button type="button" class="btn btn-ghost" id="btn-stop">
+            <button type="button" class="btn btn-ghost" id="btn-stop" data-i18n="host.stop">
               Stop
             </button>
-            <button type="button" class="btn btn-ghost" id="btn-copy">
+            <button type="button" class="btn btn-ghost" id="btn-copy" data-i18n="host.copy">
               Copy link
             </button>
           </div>
@@ -135,11 +218,16 @@
 
         <div id="client-panel" class="panel client-panel hidden">
           <div class="client-orb" id="client-orb" aria-hidden="true"></div>
-          <p class="client-title">Ready to receive</p>
-          <p class="lede client-copy" id="client-copy">
+          <p class="client-title" data-i18n="client.title">Ready to receive</p>
+          <p class="lede client-copy" id="client-copy" data-i18n="client.copyIdle">
             Keep this screen open. Vibration follows the host’s handle.
           </p>
-          <button type="button" class="btn btn-primary" id="btn-enable-vibe">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="btn-enable-vibe"
+            data-i18n="client.enable"
+          >
             Enable vibration
           </button>
           <p class="hint" id="vibe-hint"></p>

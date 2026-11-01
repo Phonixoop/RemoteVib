@@ -1,4 +1,167 @@
 const MODES = ["continuous", "pulse", "wave", "heartbeat", "staccato"];
+const LANGS = ["en", "fa", "ru"];
+const LANG_KEY = "remotevib-lang";
+const THEME_KEY = "remotevib-theme";
+
+const STRINGS = {
+  en: {
+    "meta.title": "RemoteVib",
+    "meta.description": "Connect two phones. Control vibration remotely.",
+    "prefs.themeDark": "Dark",
+    "prefs.themeLight": "Light",
+    "home.title": "Two phones.<br />One pulse.",
+    "home.lede":
+      "Host a room on one phone, join on the other, then drag the handle to control vibration live.",
+    "home.host": "Host a room",
+    "home.join": "Join a room",
+    "join.back": "← Back",
+    "join.title": "Enter room code",
+    "join.lede": "Ask the host for their 6-character code.",
+    "join.placeholder": "AB12CD",
+    "join.connect": "Connect",
+    "session.leave": "Leave",
+    "session.roleHost": "Host",
+    "session.roleClient": "Client",
+    "status.connecting": "Connecting…",
+    "status.connected": "Connected",
+    "status.disconnected": "Disconnected",
+    "status.connectionError": "Connection error",
+    "status.waitingPeer": "Waiting for peer",
+    "status.waitingClient": "Waiting for client",
+    "status.clientConnected": "Client connected",
+    "status.waitingHost": "Waiting for host",
+    "status.hostConnected": "Host connected",
+    "host.intensity": "intensity",
+    "host.sliderAria": "Vibration intensity",
+    "host.modesAria": "Vibration mode",
+    "host.start": "Start",
+    "host.pause": "Pause",
+    "host.stop": "Stop",
+    "host.copy": "Copy link",
+    "host.copied": "Copied",
+    "mode.continuous": "Continuous",
+    "mode.pulse": "Pulse",
+    "mode.wave": "Wave",
+    "mode.heartbeat": "Heartbeat",
+    "mode.staccato": "Staccato",
+    "client.title": "Ready to receive",
+    "client.copyIdle": "Keep this screen open. Vibration follows the host’s handle.",
+    "client.copyLive": "{mode} · {intensity}",
+    "client.enable": "Enable vibration",
+    "client.noApi":
+      "This browser doesn’t expose the Vibration API (common on iPhone). Use Android Chrome for motor feedback — the visual pulse still works.",
+    "client.enabled": "Vibration enabled. Waiting for the host.",
+    "alert.hostFail": "Failed to host",
+    "alert.createFail": "Could not create room",
+    "alert.invalidCode": "Enter a valid room code",
+    "alert.copyPrompt": "Copy this join link",
+  },
+  fa: {
+    "meta.title": "RemoteVib",
+    "meta.description": "دو گوشی را وصل کنید. لرزش را از راه دور کنترل کنید.",
+    "prefs.themeDark": "تیره",
+    "prefs.themeLight": "روشن",
+    "home.title": "دو گوشی.<br />یک نبض.",
+    "home.lede":
+      "روی یک گوشی اتاق بسازید، با گوشی دیگر وارد شوید، سپس دستگیره را بکشید تا لرزش را زنده کنترل کنید.",
+    "home.host": "ساخت اتاق",
+    "home.join": "پیوستن به اتاق",
+    "join.back": "→ بازگشت",
+    "join.title": "کد اتاق را وارد کنید",
+    "join.lede": "کد ۶ حرفی را از میزبان بگیرید.",
+    "join.placeholder": "AB12CD",
+    "join.connect": "اتصال",
+    "session.leave": "خروج",
+    "session.roleHost": "میزبان",
+    "session.roleClient": "مهمان",
+    "status.connecting": "در حال اتصال…",
+    "status.connected": "متصل",
+    "status.disconnected": "قطع شد",
+    "status.connectionError": "خطای اتصال",
+    "status.waitingPeer": "در انتظار طرف مقابل",
+    "status.waitingClient": "در انتظار مهمان",
+    "status.clientConnected": "مهمان متصل شد",
+    "status.waitingHost": "در انتظار میزبان",
+    "status.hostConnected": "میزبان متصل شد",
+    "host.intensity": "شدت",
+    "host.sliderAria": "شدت لرزش",
+    "host.modesAria": "حالت لرزش",
+    "host.start": "شروع",
+    "host.pause": "مکث",
+    "host.stop": "توقف",
+    "host.copy": "کپی لینک",
+    "host.copied": "کپی شد",
+    "mode.continuous": "پیوسته",
+    "mode.pulse": "پالس",
+    "mode.wave": "موج",
+    "mode.heartbeat": "ضربان",
+    "mode.staccato": "استکاتو",
+    "client.title": "آماده دریافت",
+    "client.copyIdle": "این صفحه را باز نگه دارید. لرزش از دستگیره میزبان پیروی می‌کند.",
+    "client.copyLive": "{mode} · {intensity}",
+    "client.enable": "فعال‌سازی لرزش",
+    "client.noApi":
+      "این مرورگر API لرزش را در دسترس نمی‌گذارد (معمولاً در آیفون). برای بازخورد موتور از کروم اندروید استفاده کنید — پالس تصویری همچنان کار می‌کند.",
+    "client.enabled": "لرزش فعال شد. در انتظار میزبان.",
+    "alert.hostFail": "میزبانی ناموفق بود",
+    "alert.createFail": "ساخت اتاق ممکن نشد",
+    "alert.invalidCode": "یک کد اتاق معتبر وارد کنید",
+    "alert.copyPrompt": "این لینک ورود را کپی کنید",
+  },
+  ru: {
+    "meta.title": "RemoteVib",
+    "meta.description": "Соедините два телефона. Управляйте вибрацией удалённо.",
+    "prefs.themeDark": "Тёмная",
+    "prefs.themeLight": "Светлая",
+    "home.title": "Два телефона.<br />Один пульс.",
+    "home.lede":
+      "Создайте комнату на одном телефоне, войдите с другого и двигайте ручку, чтобы управлять вибрацией в реальном времени.",
+    "home.host": "Создать комнату",
+    "home.join": "Войти в комнату",
+    "join.back": "← Назад",
+    "join.title": "Введите код комнаты",
+    "join.lede": "Попросите у ведущего их 6-символьный код.",
+    "join.placeholder": "AB12CD",
+    "join.connect": "Подключиться",
+    "session.leave": "Выйти",
+    "session.roleHost": "Ведущий",
+    "session.roleClient": "Гость",
+    "status.connecting": "Подключение…",
+    "status.connected": "Подключено",
+    "status.disconnected": "Отключено",
+    "status.connectionError": "Ошибка соединения",
+    "status.waitingPeer": "Ожидание собеседника",
+    "status.waitingClient": "Ожидание гостя",
+    "status.clientConnected": "Гость подключён",
+    "status.waitingHost": "Ожидание ведущего",
+    "status.hostConnected": "Ведущий подключён",
+    "host.intensity": "интенсивность",
+    "host.sliderAria": "Интенсивность вибрации",
+    "host.modesAria": "Режим вибрации",
+    "host.start": "Старт",
+    "host.pause": "Пауза",
+    "host.stop": "Стоп",
+    "host.copy": "Копировать ссылку",
+    "host.copied": "Скопировано",
+    "mode.continuous": "Непрерывный",
+    "mode.pulse": "Пульс",
+    "mode.wave": "Волна",
+    "mode.heartbeat": "Сердцебиение",
+    "mode.staccato": "Стаккато",
+    "client.title": "Готов принимать",
+    "client.copyIdle":
+      "Оставьте этот экран открытым. Вибрация следует за ручкой ведущего.",
+    "client.copyLive": "{mode} · {intensity}",
+    "client.enable": "Включить вибрацию",
+    "client.noApi":
+      "Этот браузер не даёт доступ к Vibration API (часто на iPhone). Для моторной отдачи используйте Chrome на Android — визуальный пульс всё равно работает.",
+    "client.enabled": "Вибрация включена. Ожидание ведущего.",
+    "alert.hostFail": "Не удалось создать комнату",
+    "alert.createFail": "Не удалось создать комнату",
+    "alert.invalidCode": "Введите корректный код комнаты",
+    "alert.copyPrompt": "Скопируйте эту ссылку для входа",
+  },
+};
 
 const els = {
   home: document.getElementById("view-home"),
@@ -26,7 +189,10 @@ const els = {
   vibeHint: document.getElementById("vibe-hint"),
   clientOrb: document.getElementById("client-orb"),
   clientCopy: document.getElementById("client-copy"),
+  btnTheme: document.getElementById("btn-theme"),
+  themeLabel: document.querySelector(".theme-label"),
   modeButtons: [...document.querySelectorAll(".mode")],
+  langButtons: [...document.querySelectorAll(".lang-btn")],
 };
 
 const state = {
@@ -41,7 +207,132 @@ const state = {
   vibeTimer: null,
   sendTimer: null,
   dragging: false,
+  language: "en",
+  languageManual: false,
+  themePreference: null,
+  connectionKey: "status.connecting",
+  connectionKind: "warn",
+  copyResetTimer: null,
 };
+
+function t(key, vars) {
+  const table = STRINGS[state.language] || STRINGS.en;
+  let value = table[key] ?? STRINGS.en[key] ?? key;
+  if (vars) {
+    value = value.replace(/\{(\w+)\}/g, (_, name) =>
+      vars[name] != null ? String(vars[name]) : "",
+    );
+  }
+  return value;
+}
+
+function modeLabel(mode) {
+  return t(`mode.${mode}`);
+}
+
+function applyStaticTranslations() {
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    const key = node.getAttribute("data-i18n");
+    if (!key) return;
+    const attr = node.getAttribute("data-i18n-attr");
+    const value = t(key);
+    if (attr) node.setAttribute(attr, value);
+    else node.textContent = value;
+  });
+
+  document.querySelectorAll("[data-i18n-html]").forEach((node) => {
+    const key = node.getAttribute("data-i18n-html");
+    if (!key) return;
+    node.innerHTML = t(key);
+  });
+}
+
+function refreshDynamicCopy() {
+  if (state.role) {
+    els.roleLabel.textContent =
+      state.role === "host" ? t("session.roleHost") : t("session.roleClient");
+  }
+
+  setConnectionStatus(state.connectionKey, state.connectionKind, true);
+  setPeerStatus(state.peers, true);
+  renderControls();
+  syncClientVisual();
+  updateThemeButton();
+
+  if (state.vibeEnabled) {
+    els.vibeHint.textContent = canVibrate() ? t("client.enabled") : t("client.noApi");
+  }
+}
+
+function setLanguage(lang, { persist = false, fromAuto = false } = {}) {
+  if (!LANGS.includes(lang)) return;
+  state.language = lang;
+  if (persist) {
+    localStorage.setItem(LANG_KEY, lang);
+    state.languageManual = true;
+  } else if (fromAuto) {
+    state.languageManual = false;
+  }
+
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+
+  for (const btn of els.langButtons) {
+    btn.setAttribute("aria-pressed", String(btn.dataset.lang === lang));
+  }
+
+  applyStaticTranslations();
+  refreshDynamicCopy();
+}
+
+function systemPrefersDark() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function effectiveTheme() {
+  if (state.themePreference === "light" || state.themePreference === "dark") {
+    return state.themePreference;
+  }
+  return systemPrefersDark() ? "dark" : "light";
+}
+
+function applyTheme() {
+  const theme = effectiveTheme();
+  document.documentElement.dataset.theme = theme;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", theme === "dark" ? "#071412" : "#0b2e2a");
+  }
+  updateThemeButton();
+}
+
+function updateThemeButton() {
+  const nextIsDark = effectiveTheme() === "light";
+  const key = nextIsDark ? "prefs.themeDark" : "prefs.themeLight";
+  const label = t(key);
+  els.btnTheme.setAttribute("aria-label", label);
+  els.btnTheme.title = label;
+  els.btnTheme.setAttribute("aria-pressed", String(effectiveTheme() === "dark"));
+  if (els.themeLabel) {
+    els.themeLabel.setAttribute("data-i18n", key);
+    els.themeLabel.textContent = label;
+  }
+}
+
+function setThemePreference(pref) {
+  state.themePreference = pref;
+  if (pref === "light" || pref === "dark") {
+    localStorage.setItem(THEME_KEY, pref);
+  } else {
+    localStorage.removeItem(THEME_KEY);
+  }
+  applyTheme();
+}
+
+function toggleTheme() {
+  const next = effectiveTheme() === "dark" ? "light" : "dark";
+  setThemePreference(next);
+}
 
 function show(view) {
   for (const node of [els.home, els.join, els.session]) {
@@ -49,26 +340,38 @@ function show(view) {
   }
 }
 
-function setConnectionStatus(text, kind = "") {
-  els.statusConnection.textContent = text;
+function setConnectionStatus(keyOrText, kind = "", isKey = true) {
+  if (isKey) {
+    state.connectionKey = keyOrText;
+    state.connectionKind = kind;
+    els.statusConnection.textContent = t(keyOrText);
+  } else {
+    state.connectionKey = keyOrText;
+    state.connectionKind = kind;
+    els.statusConnection.textContent = keyOrText;
+  }
   els.statusConnection.classList.remove("live", "warn");
   if (kind) els.statusConnection.classList.add(kind);
 }
 
-function setPeerStatus(peers) {
-  state.peers = peers;
+function setPeerStatus(peers, skipAssign = false) {
+  if (!skipAssign) state.peers = peers;
   if (state.role === "host") {
     els.statusPeer.textContent = peers.client
-      ? "Client connected"
-      : "Waiting for client";
+      ? t("status.clientConnected")
+      : t("status.waitingClient");
     els.statusPeer.classList.toggle("live", peers.client);
     els.statusPeer.classList.toggle("warn", !peers.client);
-  } else {
+  } else if (state.role === "client") {
     els.statusPeer.textContent = peers.host
-      ? "Host connected"
-      : "Waiting for host";
+      ? t("status.hostConnected")
+      : t("status.waitingHost");
     els.statusPeer.classList.toggle("live", peers.host);
     els.statusPeer.classList.toggle("warn", !peers.host);
+  } else {
+    els.statusPeer.textContent = t("status.waitingPeer");
+    els.statusPeer.classList.remove("live");
+    els.statusPeer.classList.add("warn");
   }
 }
 
@@ -85,12 +388,13 @@ function connect(room, role) {
   state.mode = "continuous";
   state.active = false;
 
-  els.roleLabel.textContent = role === "host" ? "Host" : "Client";
+  els.roleLabel.textContent =
+    role === "host" ? t("session.roleHost") : t("session.roleClient");
   els.roomLabel.textContent = room;
   els.hostPanel.classList.toggle("hidden", role !== "host");
   els.clientPanel.classList.toggle("hidden", role !== "client");
   show(els.session);
-  setConnectionStatus("Connecting…", "warn");
+  setConnectionStatus("status.connecting", "warn");
   setPeerStatus({ host: role === "host", client: role === "client" });
   renderControls();
   updateModeButtons();
@@ -99,7 +403,7 @@ function connect(room, role) {
   state.ws = ws;
 
   ws.addEventListener("open", () => {
-    setConnectionStatus("Connected", "live");
+    setConnectionStatus("status.connected", "live");
     startHeartbeat(ws);
   });
 
@@ -116,12 +420,12 @@ function connect(room, role) {
 
   ws.addEventListener("close", () => {
     stopHeartbeat();
-    setConnectionStatus("Disconnected", "warn");
+    setConnectionStatus("status.disconnected", "warn");
     stopVibration();
   });
 
   ws.addEventListener("error", () => {
-    setConnectionStatus("Connection error", "warn");
+    setConnectionStatus("status.connectionError", "warn");
   });
 
   history.replaceState({}, "", `/?room=${room}&role=${role}`);
@@ -147,6 +451,10 @@ function disconnect() {
     clearTimeout(state.sendTimer);
     state.sendTimer = null;
   }
+  if (state.copyResetTimer) {
+    clearTimeout(state.copyResetTimer);
+    state.copyResetTimer = null;
+  }
   if (state.ws) {
     state.ws.onclose = null;
     state.ws.close();
@@ -169,7 +477,7 @@ function handleMessage(msg) {
     return;
   }
   if (msg.type === "error") {
-    setConnectionStatus(msg.message, "warn");
+    setConnectionStatus(msg.message, "warn", false);
   }
 }
 
@@ -200,7 +508,7 @@ function renderControls() {
   els.sliderFill.style.height = `${pct}%`;
   els.sliderHandle.style.bottom = `${pct}%`;
   els.sliderTrack.setAttribute("aria-valuenow", String(pct));
-  els.btnToggle.textContent = state.active ? "Pause" : "Start";
+  els.btnToggle.textContent = state.active ? t("host.pause") : t("host.start");
 }
 
 function updateModeButtons() {
@@ -266,7 +574,6 @@ function buildPattern(mode, intensity) {
     }
     case "continuous":
     default: {
-      // Duty-cycle continuous buzz: higher intensity = longer on, shorter off.
       const dutyOn = Math.max(40, Math.round(i * 4.5));
       const dutyOff = Math.max(15, Math.round((100 - i) * 2.2));
       return [dutyOn, dutyOff];
@@ -312,15 +619,68 @@ function syncClientVisual() {
   els.clientOrb.style.transform = `scale(${scale})`;
   els.clientOrb.style.opacity = live ? String(0.55 + state.intensity / 180) : "0.55";
   els.clientCopy.textContent = live
-    ? `${state.mode} · ${state.intensity}`
-    : "Keep this screen open. Vibration follows the host’s handle.";
+    ? t("client.copyLive", {
+        mode: modeLabel(state.mode),
+        intensity: state.intensity,
+      })
+    : t("client.copyIdle");
 }
 
 async function createRoom() {
   const res = await fetch("/api/create-room", { method: "POST" });
-  if (!res.ok) throw new Error("Could not create room");
+  if (!res.ok) throw new Error(t("alert.createFail"));
   const data = await res.json();
   return data.room;
+}
+
+async function detectLocale() {
+  try {
+    const res = await fetch("/api/locale");
+    if (!res.ok) return null;
+    const data = await res.json();
+    return LANGS.includes(data.language) ? data.language : null;
+  } catch {
+    return null;
+  }
+}
+
+function initPrefs() {
+  const savedLang = localStorage.getItem(LANG_KEY);
+  const savedTheme = localStorage.getItem(THEME_KEY);
+
+  state.themePreference =
+    savedTheme === "light" || savedTheme === "dark" ? savedTheme : null;
+  applyTheme();
+
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const onSchemeChange = () => {
+    if (state.themePreference == null) applyTheme();
+  };
+  if (typeof media.addEventListener === "function") {
+    media.addEventListener("change", onSchemeChange);
+  } else if (typeof media.addListener === "function") {
+    media.addListener(onSchemeChange);
+  }
+
+  els.btnTheme.addEventListener("click", toggleTheme);
+
+  for (const btn of els.langButtons) {
+    btn.addEventListener("click", () => {
+      setLanguage(btn.dataset.lang, { persist: true });
+    });
+  }
+
+  if (LANGS.includes(savedLang)) {
+    setLanguage(savedLang, { persist: false });
+    state.languageManual = true;
+    return;
+  }
+
+  setLanguage("en");
+  detectLocale().then((lang) => {
+    if (!lang || state.languageManual) return;
+    setLanguage(lang, { fromAuto: true });
+  });
 }
 
 els.btnHost.addEventListener("click", async () => {
@@ -328,7 +688,7 @@ els.btnHost.addEventListener("click", async () => {
     const room = await createRoom();
     connect(room, "host");
   } catch (err) {
-    alert(err.message || "Failed to host");
+    alert(err.message || t("alert.hostFail"));
   }
 });
 
@@ -346,7 +706,7 @@ els.joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const room = els.joinCode.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (room.length < 4) {
-    alert("Enter a valid room code");
+    alert(t("alert.invalidCode"));
     return;
   }
   connect(room, "client");
@@ -376,9 +736,6 @@ els.btnToggle.addEventListener("click", () => {
   if (state.role !== "host") return;
   state.active = !state.active;
   if (state.active && state.intensity === 0) state.intensity = 35;
-  if (!state.active) {
-    /* keep intensity for resume */
-  }
   renderControls();
   sendControl();
 });
@@ -397,23 +754,24 @@ els.btnCopy.addEventListener("click", async () => {
   const link = `${location.origin}/?room=${state.room}&role=client`;
   try {
     await navigator.clipboard.writeText(link);
-    els.btnCopy.textContent = "Copied";
-    setTimeout(() => {
-      els.btnCopy.textContent = "Copy link";
+    els.btnCopy.textContent = t("host.copied");
+    if (state.copyResetTimer) clearTimeout(state.copyResetTimer);
+    state.copyResetTimer = setTimeout(() => {
+      els.btnCopy.textContent = t("host.copy");
+      state.copyResetTimer = null;
     }, 1200);
   } catch {
-    prompt("Copy this join link", link);
+    prompt(t("alert.copyPrompt"), link);
   }
 });
 
 els.btnEnableVibe.addEventListener("click", () => {
   state.vibeEnabled = true;
   if (!canVibrate()) {
-    els.vibeHint.textContent =
-      "This browser doesn’t expose the Vibration API (common on iPhone). Use Android Chrome for motor feedback — the visual pulse still works.";
+    els.vibeHint.textContent = t("client.noApi");
   } else {
     navigator.vibrate([40, 40, 40]);
-    els.vibeHint.textContent = "Vibration enabled. Waiting for the host.";
+    els.vibeHint.textContent = t("client.enabled");
   }
   if (state.active && state.intensity > 0) startVibrationLoop();
 });
@@ -474,4 +832,5 @@ function bootFromQuery() {
   }
 }
 
+initPrefs();
 bootFromQuery();
