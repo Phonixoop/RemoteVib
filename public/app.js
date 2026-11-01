@@ -2,6 +2,7 @@ const MODES = ["continuous", "pulse", "wave", "heartbeat", "staccato"];
 const LANGS = ["en", "fa", "ru"];
 const LANG_KEY = "remotevib-lang";
 const THEME_KEY = "remotevib-theme";
+const HOST_SELF_VIBE_KEY = "remotevib-host-self-vibe";
 
 const STRINGS = {
   en: {
@@ -39,6 +40,8 @@ const STRINGS = {
     "host.stop": "Stop",
     "host.copy": "Copy link",
     "host.copied": "Copied",
+    "host.selfVibe": "Feel on this phone",
+    "host.selfVibeEnabled": "Mirroring what the client feels.",
     "mode.continuous": "Continuous",
     "mode.pulse": "Pulse",
     "mode.wave": "Wave",
@@ -91,6 +94,8 @@ const STRINGS = {
     "host.stop": "توقف",
     "host.copy": "کپی لینک",
     "host.copied": "کپی شد",
+    "host.selfVibe": "لرزش روی این گوشی",
+    "host.selfVibeEnabled": "همان حسّی که مهمان دریافت می‌کند.",
     "mode.continuous": "پیوسته",
     "mode.pulse": "پالس",
     "mode.wave": "موج",
@@ -143,6 +148,8 @@ const STRINGS = {
     "host.stop": "Стоп",
     "host.copy": "Копировать ссылку",
     "host.copied": "Скопировано",
+    "host.selfVibe": "Вибрация на этом телефоне",
+    "host.selfVibeEnabled": "Повторяет то, что чувствует гость.",
     "mode.continuous": "Непрерывный",
     "mode.pulse": "Пульс",
     "mode.wave": "Волна",
@@ -187,6 +194,9 @@ const els = {
   btnCopy: document.getElementById("btn-copy"),
   btnEnableVibe: document.getElementById("btn-enable-vibe"),
   vibeHint: document.getElementById("vibe-hint"),
+  hostSelfVibe: document.getElementById("host-self-vibe"),
+  btnHostEnableVibe: document.getElementById("btn-host-enable-vibe"),
+  hostVibeHint: document.getElementById("host-vibe-hint"),
   clientOrb: document.getElementById("client-orb"),
   clientCopy: document.getElementById("client-copy"),
   btnTheme: document.getElementById("btn-theme"),
@@ -204,6 +214,7 @@ const state = {
   active: false,
   peers: { host: false, client: false },
   vibeEnabled: false,
+  hostSelfVibe: true,
   vibeTimer: null,
   sendTimer: null,
   dragging: false,
@@ -262,6 +273,7 @@ function refreshDynamicCopy() {
   if (state.vibeEnabled) {
     els.vibeHint.textContent = canVibrate() ? t("client.enabled") : t("client.noApi");
   }
+  updateHostVibeUi();
 }
 
 function setLanguage(lang, { persist = false, fromAuto = false } = {}) {
@@ -398,6 +410,8 @@ function connect(room, role) {
   setPeerStatus({ host: role === "host", client: role === "client" });
   renderControls();
   updateModeButtons();
+  updateHostVibeUi();
+  syncLocalVibration();
 
   const ws = new WebSocket(wsUrl(room, role));
   state.ws = ws;
@@ -490,12 +504,9 @@ function applyControl(next, fromNetwork) {
 
   if (state.role === "client") {
     syncClientVisual();
-    if (state.active && state.intensity > 0) {
-      startVibrationLoop();
-    } else {
-      stopVibration();
-    }
   }
+
+  syncLocalVibration();
 
   if (!fromNetwork && state.role === "host") {
     scheduleSend();
@@ -546,6 +557,7 @@ function setIntensityFromPointer(clientY) {
   if (intensity > 0 && !state.active) state.active = true;
   if (intensity === 0) state.active = false;
   renderControls();
+  syncLocalVibration();
   scheduleSend();
 }
 
@@ -585,12 +597,25 @@ function canVibrate() {
   return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
 }
 
+function shouldVibrateLocally() {
+  if (!state.active || state.intensity <= 0) return false;
+  if (!state.vibeEnabled || !canVibrate()) return false;
+  if (state.role === "client") return true;
+  if (state.role === "host") return state.hostSelfVibe;
+  return false;
+}
+
+function syncLocalVibration() {
+  if (shouldVibrateLocally()) startVibrationLoop();
+  else stopVibration();
+}
+
 function startVibrationLoop() {
   stopVibration(false);
-  if (!state.vibeEnabled || !canVibrate()) return;
+  if (!shouldVibrateLocally()) return;
 
   const tick = () => {
-    if (!state.active || state.intensity <= 0) {
+    if (!shouldVibrateLocally()) {
       stopVibration();
       return;
     }
@@ -609,7 +634,44 @@ function stopVibration(cancelMotor = true) {
     state.vibeTimer = null;
   }
   if (cancelMotor && canVibrate()) navigator.vibrate(0);
-  syncClientVisual();
+  if (state.role === "client") syncClientVisual();
+}
+
+function enableVibration(targetHint) {
+  state.vibeEnabled = true;
+  if (!canVibrate()) {
+    targetHint.textContent = t("client.noApi");
+  } else {
+    navigator.vibrate([40, 40, 40]);
+    targetHint.textContent =
+      state.role === "host" ? t("host.selfVibeEnabled") : t("client.enabled");
+  }
+  updateHostVibeUi();
+  syncLocalVibration();
+}
+
+function updateHostVibeUi() {
+  if (!els.hostSelfVibe) return;
+  els.hostSelfVibe.checked = state.hostSelfVibe;
+  const needsEnable = state.hostSelfVibe && !state.vibeEnabled;
+  els.btnHostEnableVibe.classList.toggle("hidden", !needsEnable);
+
+  if (!state.hostSelfVibe) {
+    els.hostVibeHint.textContent = "";
+  } else if (state.vibeEnabled) {
+    els.hostVibeHint.textContent = canVibrate()
+      ? t("host.selfVibeEnabled")
+      : t("client.noApi");
+  } else {
+    els.hostVibeHint.textContent = "";
+  }
+}
+
+function setHostSelfVibe(on) {
+  state.hostSelfVibe = Boolean(on);
+  localStorage.setItem(HOST_SELF_VIBE_KEY, state.hostSelfVibe ? "1" : "0");
+  updateHostVibeUi();
+  syncLocalVibration();
 }
 
 function syncClientVisual() {
@@ -647,6 +709,10 @@ async function detectLocale() {
 function initPrefs() {
   const savedLang = localStorage.getItem(LANG_KEY);
   const savedTheme = localStorage.getItem(THEME_KEY);
+  const savedSelfVibe = localStorage.getItem(HOST_SELF_VIBE_KEY);
+
+  state.hostSelfVibe = savedSelfVibe !== "0";
+  updateHostVibeUi();
 
   state.themePreference =
     savedTheme === "light" || savedTheme === "dark" ? savedTheme : null;
@@ -729,6 +795,7 @@ els.modeButtons.forEach((btn) => {
       state.active = state.intensity > 0;
       scheduleSend();
     }
+    syncLocalVibration();
   });
 });
 
@@ -737,6 +804,7 @@ els.btnToggle.addEventListener("click", () => {
   state.active = !state.active;
   if (state.active && state.intensity === 0) state.intensity = 35;
   renderControls();
+  syncLocalVibration();
   sendControl();
 });
 
@@ -745,9 +813,18 @@ els.btnStop.addEventListener("click", () => {
   state.active = false;
   state.intensity = 0;
   renderControls();
+  syncLocalVibration();
   if (state.ws?.readyState === WebSocket.OPEN) {
     state.ws.send(JSON.stringify({ type: "stop" }));
   }
+});
+
+els.hostSelfVibe.addEventListener("change", () => {
+  setHostSelfVibe(els.hostSelfVibe.checked);
+});
+
+els.btnHostEnableVibe.addEventListener("click", () => {
+  enableVibration(els.hostVibeHint);
 });
 
 els.btnCopy.addEventListener("click", async () => {
@@ -766,14 +843,7 @@ els.btnCopy.addEventListener("click", async () => {
 });
 
 els.btnEnableVibe.addEventListener("click", () => {
-  state.vibeEnabled = true;
-  if (!canVibrate()) {
-    els.vibeHint.textContent = t("client.noApi");
-  } else {
-    navigator.vibrate([40, 40, 40]);
-    els.vibeHint.textContent = t("client.enabled");
-  }
-  if (state.active && state.intensity > 0) startVibrationLoop();
+  enableVibration(els.vibeHint);
 });
 
 function onPointerDown(event) {
@@ -816,6 +886,7 @@ els.sliderTrack.addEventListener("keydown", (event) => {
   state.intensity = Math.max(0, Math.min(100, next));
   state.active = state.intensity > 0;
   renderControls();
+  syncLocalVibration();
   scheduleSend();
 });
 
