@@ -702,6 +702,188 @@ html[lang="fa"] .client-title {
   max-width: 28ch;
 }
 
+.reactions-panel {
+  margin-bottom: 18px;
+  padding: 14px 14px 12px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.reactions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.reactions-label {
+  margin: 0;
+  color: var(--teal-deep);
+  font: 700 0.95rem/1.2 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+html[lang="fa"] .reactions-label {
+  letter-spacing: 0;
+}
+
+.reactions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reaction-chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: 600 0.82rem/1 var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.reaction-chip:active {
+  transform: scale(0.96);
+}
+
+.reaction-chip .reaction-emoji {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.reaction-custom-form {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reaction-custom-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font: 500 0.9rem/1.2 var(--font-body);
+  color: var(--teal-deep);
+  background: var(--surface-strong);
+  outline: none;
+}
+
+.reaction-custom-form input:focus {
+  border-color: var(--coral);
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.15);
+}
+
+#reaction-emoji {
+  text-align: center;
+  font-size: 1.2rem;
+  padding-inline: 6px;
+}
+
+.reaction-toasts {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(92vw, 360px);
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.reaction-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  backdrop-filter: blur(16px);
+  animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-toast.outgoing {
+  border-color: rgba(255, 107, 74, 0.35);
+}
+
+.reaction-toast .toast-emoji {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.reaction-toast .toast-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reaction-toast .toast-from {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html[lang="fa"] .reaction-toast .toast-from {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.reaction-toast .toast-text {
+  font: 600 0.95rem/1.25 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.reaction-toast.leaving {
+  animation: toast-out 0.28s ease forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@media (max-width: 420px) {
+  .reaction-custom-form {
+    grid-template-columns: 52px 1fr;
+  }
+
+  .reaction-custom-form button {
+    grid-column: span 1;
+  }
+}
+
 @media (min-width: 720px) {
   .shell {
     width: min(100%, 480px);

@@ -42,6 +42,22 @@ const STRINGS = {
     "host.copied": "Copied",
     "host.selfVibe": "Feel on this phone",
     "host.selfVibeEnabled": "Mirroring what the client feels.",
+    "react.title": "Quick reactions",
+    "react.add": "Add",
+    "react.save": "Save",
+    "react.cancel": "Cancel",
+    "react.customPlaceholder": "Custom message",
+    "react.fromHost": "Host",
+    "react.fromClient": "Client",
+    "react.fromYou": "You",
+    "react.love": "Love it",
+    "react.hot": "Hot",
+    "react.wow": "Wow",
+    "react.lol": "Lol",
+    "react.wait": "Wait",
+    "react.ok": "OK",
+    "react.more": "More",
+    "react.soft": "Softer",
     "mode.continuous": "Continuous",
     "mode.pulse": "Pulse",
     "mode.wave": "Wave",
@@ -96,6 +112,22 @@ const STRINGS = {
     "host.copied": "کپی شد",
     "host.selfVibe": "لرزش روی این گوشی",
     "host.selfVibeEnabled": "همان حسّی که مهمان دریافت می‌کند.",
+    "react.title": "واکنش سریع",
+    "react.add": "افزودن",
+    "react.save": "ذخیره",
+    "react.cancel": "لغو",
+    "react.customPlaceholder": "پیام سفارشی",
+    "react.fromHost": "میزبان",
+    "react.fromClient": "مهمان",
+    "react.fromYou": "شما",
+    "react.love": "عاشقتم",
+    "react.hot": "داغ",
+    "react.wow": "وای",
+    "react.lol": "خنده‌دار",
+    "react.wait": "صبر کن",
+    "react.ok": "باشه",
+    "react.more": "بیشتر",
+    "react.soft": "ملایم‌تر",
     "mode.continuous": "پیوسته",
     "mode.pulse": "پالس",
     "mode.wave": "موج",
@@ -150,6 +182,22 @@ const STRINGS = {
     "host.copied": "Скопировано",
     "host.selfVibe": "Вибрация на этом телефоне",
     "host.selfVibeEnabled": "Повторяет то, что чувствует гость.",
+    "react.title": "Быстрые реакции",
+    "react.add": "Добавить",
+    "react.save": "Сохранить",
+    "react.cancel": "Отмена",
+    "react.customPlaceholder": "Своё сообщение",
+    "react.fromHost": "Ведущий",
+    "react.fromClient": "Гость",
+    "react.fromYou": "Вы",
+    "react.love": "Люблю",
+    "react.hot": "Горячо",
+    "react.wow": "Вау",
+    "react.lol": "Лол",
+    "react.wait": "Подожди",
+    "react.ok": "Ок",
+    "react.more": "Ещё",
+    "react.soft": "Мягче",
     "mode.continuous": "Непрерывный",
     "mode.pulse": "Пульс",
     "mode.wave": "Волна",
@@ -201,6 +249,13 @@ const els = {
   clientCopy: document.getElementById("client-copy"),
   btnTheme: document.getElementById("btn-theme"),
   themeLabel: document.querySelector(".theme-label"),
+  reactionsList: document.getElementById("reactions-list"),
+  btnAddReaction: document.getElementById("btn-add-reaction"),
+  reactionForm: document.getElementById("reaction-custom-form"),
+  reactionEmoji: document.getElementById("reaction-emoji"),
+  reactionText: document.getElementById("reaction-text"),
+  btnCancelReaction: document.getElementById("btn-cancel-reaction"),
+  reactionToasts: document.getElementById("reaction-toasts"),
   modeButtons: [...document.querySelectorAll(".mode")],
   langButtons: [...document.querySelectorAll(".lang-btn")],
 };
@@ -224,7 +279,19 @@ const state = {
   connectionKey: "status.connecting",
   connectionKind: "warn",
   copyResetTimer: null,
+  customReactions: [],
 };
+
+const BUILTIN_REACTIONS = [
+  { id: "love", emoji: "❤️", labelKey: "react.love" },
+  { id: "hot", emoji: "🔥", labelKey: "react.hot" },
+  { id: "wow", emoji: "😮", labelKey: "react.wow" },
+  { id: "lol", emoji: "😂", labelKey: "react.lol" },
+  { id: "wait", emoji: "✋", labelKey: "react.wait" },
+  { id: "ok", emoji: "✅", labelKey: "react.ok" },
+  { id: "more", emoji: "😈", labelKey: "react.more" },
+  { id: "soft", emoji: "💤", labelKey: "react.soft" },
+];
 
 function t(key, vars) {
   const table = STRINGS[state.language] || STRINGS.en;
@@ -274,6 +341,7 @@ function refreshDynamicCopy() {
     els.vibeHint.textContent = canVibrate() ? t("client.enabled") : t("client.noApi");
   }
   updateHostVibeUi();
+  renderReactions();
 }
 
 function setLanguage(lang, { persist = false, fromAuto = false } = {}) {
@@ -412,6 +480,8 @@ function connect(room, role) {
   updateModeButtons();
   updateHostVibeUi();
   syncLocalVibration();
+  resetSessionReactions();
+  hideReactionForm();
 
   const ws = new WebSocket(wsUrl(room, role));
   state.ws = ws;
@@ -474,6 +544,9 @@ function disconnect() {
     state.ws.close();
     state.ws = null;
   }
+  resetSessionReactions();
+  clearReactionToasts();
+  hideReactionForm();
 }
 
 function handleMessage(msg) {
@@ -490,9 +563,142 @@ function handleMessage(msg) {
     applyControl(msg.state, true);
     return;
   }
+  if (msg.type === "reaction") {
+    showReactionToast({
+      emoji: msg.emoji,
+      text: msg.text,
+      from: msg.from,
+      outgoing: false,
+    });
+    return;
+  }
   if (msg.type === "error") {
     setConnectionStatus(msg.message, "warn", false);
   }
+}
+
+function resetSessionReactions() {
+  state.customReactions = [];
+  renderReactions();
+}
+
+function reactionEntries() {
+  const builtins = BUILTIN_REACTIONS.map((item) => ({
+    id: item.id,
+    emoji: item.emoji,
+    text: t(item.labelKey),
+    custom: false,
+  }));
+  const customs = state.customReactions.map((item, index) => ({
+    id: `custom-${index}`,
+    emoji: item.emoji,
+    text: item.text,
+    custom: true,
+  }));
+  return [...builtins, ...customs];
+}
+
+function renderReactions() {
+  if (!els.reactionsList) return;
+  const entries = reactionEntries();
+  els.reactionsList.replaceChildren(
+    ...entries.map((item) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "reaction-chip";
+      btn.setAttribute("role", "listitem");
+      btn.dataset.emoji = item.emoji;
+      btn.dataset.text = item.text;
+
+      const emoji = document.createElement("span");
+      emoji.className = "reaction-emoji";
+      emoji.textContent = item.emoji;
+
+      const label = document.createElement("span");
+      label.textContent = item.text;
+
+      btn.append(emoji, label);
+      btn.addEventListener("click", () => sendReaction(item.emoji, item.text));
+      return btn;
+    }),
+  );
+}
+
+function hideReactionForm() {
+  els.reactionForm.classList.add("hidden");
+  els.reactionEmoji.value = "";
+  els.reactionText.value = "";
+}
+
+function showReactionForm() {
+  els.reactionForm.classList.remove("hidden");
+  els.reactionEmoji.focus();
+}
+
+function sendReaction(emoji, text) {
+  const cleanEmoji = String(emoji || "").trim().slice(0, 8);
+  const cleanText = String(text || "").trim().slice(0, 40);
+  if (!cleanEmoji && !cleanText) return;
+
+  showReactionToast({
+    emoji: cleanEmoji || "💬",
+    text: cleanText,
+    from: state.role,
+    outgoing: true,
+  });
+
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  state.ws.send(
+    JSON.stringify({
+      type: "reaction",
+      emoji: cleanEmoji || "💬",
+      text: cleanText,
+    }),
+  );
+}
+
+function fromLabel(from, outgoing) {
+  if (outgoing) return t("react.fromYou");
+  if (from === "host") return t("react.fromHost");
+  if (from === "client") return t("react.fromClient");
+  return t("react.fromYou");
+}
+
+function showReactionToast({ emoji, text, from, outgoing }) {
+  const toast = document.createElement("div");
+  toast.className = `reaction-toast${outgoing ? " outgoing" : ""}`;
+
+  const emojiEl = document.createElement("span");
+  emojiEl.className = "toast-emoji";
+  emojiEl.textContent = emoji || "💬";
+
+  const body = document.createElement("div");
+  body.className = "toast-body";
+
+  const fromEl = document.createElement("span");
+  fromEl.className = "toast-from";
+  fromEl.textContent = fromLabel(from, outgoing);
+
+  const textEl = document.createElement("span");
+  textEl.className = "toast-text";
+  textEl.textContent = text || "";
+
+  body.append(fromEl, textEl);
+  toast.append(emojiEl, body);
+  els.reactionToasts.append(toast);
+
+  while (els.reactionToasts.children.length > 3) {
+    els.reactionToasts.firstElementChild?.remove();
+  }
+
+  setTimeout(() => {
+    toast.classList.add("leaving");
+    setTimeout(() => toast.remove(), 280);
+  }, 2600);
+}
+
+function clearReactionToasts() {
+  els.reactionToasts.replaceChildren();
 }
 
 function applyControl(next, fromNetwork) {
@@ -844,6 +1050,28 @@ els.btnCopy.addEventListener("click", async () => {
 
 els.btnEnableVibe.addEventListener("click", () => {
   enableVibration(els.vibeHint);
+});
+
+els.btnAddReaction.addEventListener("click", () => {
+  if (els.reactionForm.classList.contains("hidden")) showReactionForm();
+  else hideReactionForm();
+});
+
+els.btnCancelReaction.addEventListener("click", () => {
+  hideReactionForm();
+});
+
+els.reactionForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const emoji = els.reactionEmoji.value.trim().slice(0, 8) || "💬";
+  const text = els.reactionText.value.trim().slice(0, 24);
+  if (!text) return;
+  if (state.customReactions.length >= 8) {
+    state.customReactions.shift();
+  }
+  state.customReactions.push({ emoji, text });
+  hideReactionForm();
+  renderReactions();
 });
 
 function onPointerDown(event) {

@@ -135,6 +135,44 @@
           </span>
         </div>
 
+        <div id="reactions-panel" class="reactions-panel">
+          <div class="reactions-head">
+            <p class="reactions-label" data-i18n="react.title">Quick reactions</p>
+            <button type="button" class="btn btn-tiny" id="btn-add-reaction" data-i18n="react.add">
+              Add
+            </button>
+          </div>
+          <div id="reactions-list" class="reactions-list" role="list"></div>
+          <form id="reaction-custom-form" class="reaction-custom-form hidden">
+            <input
+              id="reaction-emoji"
+              name="emoji"
+              maxlength="8"
+              inputmode="text"
+              autocomplete="off"
+              aria-label="Emoji"
+              placeholder="✨"
+            />
+            <input
+              id="reaction-text"
+              name="text"
+              maxlength="24"
+              inputmode="text"
+              autocomplete="off"
+              data-i18n="react.customPlaceholder"
+              data-i18n-attr="placeholder"
+              placeholder="Custom message"
+              required
+            />
+            <button type="submit" class="btn btn-tiny" data-i18n="react.save">Save</button>
+            <button type="button" class="btn btn-tiny" id="btn-cancel-reaction" data-i18n="react.cancel">
+              Cancel
+            </button>
+          </form>
+        </div>
+
+        <div id="reaction-toasts" class="reaction-toasts" aria-live="polite"></div>
+
         <div id="host-panel" class="panel host-panel hidden">
           <div class="slider-stage">
             <div class="intensity-readout">

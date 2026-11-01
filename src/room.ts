@@ -20,10 +20,18 @@ type Attachment = {
   id: string;
 };
 
+type ReactionMessage = {
+  type: "reaction";
+  from: Role;
+  emoji: string;
+  text: string;
+};
+
 type ServerMessage =
   | { type: "welcome"; role: Role; room: string; state: ControlState; peers: PeerStatus }
   | { type: "peer"; peers: PeerStatus }
   | { type: "control"; state: ControlState }
+  | ReactionMessage
   | { type: "error"; message: string };
 
 type PeerStatus = {
@@ -133,6 +141,25 @@ export class VibeRoom extends DurableObject<Env> {
       }
       this.state = { ...this.state, intensity: 0, active: false };
       this.broadcast({ type: "control", state: this.state });
+      return;
+    }
+
+    if (msg.type === "reaction") {
+      const reaction = this.normalizeReaction(msg);
+      if (!reaction) {
+        this.send(ws, { type: "error", message: "Invalid reaction" });
+        return;
+      }
+      // Forward only — never store reactions or custom presets.
+      this.broadcast(
+        {
+          type: "reaction",
+          from: attachment.role,
+          emoji: reaction.emoji,
+          text: reaction.text,
+        },
+        ws,
+      );
     }
   }
 
@@ -165,6 +192,17 @@ export class VibeRoom extends DurableObject<Env> {
       host: this.ctx.getWebSockets("host").length > 0,
       client: this.ctx.getWebSockets("client").length > 0,
     };
+  }
+
+  private normalizeReaction(
+    msg: Record<string, unknown>,
+  ): { emoji: string; text: string } | null {
+    const emoji =
+      typeof msg.emoji === "string" ? msg.emoji.trim().slice(0, 8) : "";
+    const text =
+      typeof msg.text === "string" ? msg.text.trim().slice(0, 40) : "";
+    if (!emoji && !text) return null;
+    return { emoji: emoji || "💬", text };
   }
 
   private normalizeControl(msg: Record<string, unknown>): ControlState {
