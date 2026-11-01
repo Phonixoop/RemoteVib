@@ -22,6 +22,12 @@ Open the local URL on two devices (or two browser tabs). Host a room on one, joi
 npm run deploy
 ```
 
+Production URL: https://remotevib.ali-hassanzadeh78.workers.dev
+
+GitHub: https://github.com/Phonixoop/RemoteVib
+
+Pushes to `main` auto-deploy via Cloudflare Workers Builds.
+
 ## Notes
 
 - The Vibration API works on most Android browsers. iOS Safari generally does not expose it; the client still shows a live visual pulse.
