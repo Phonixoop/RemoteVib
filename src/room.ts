@@ -23,8 +23,31 @@ type Attachment = {
 type ReactionMessage = {
   type: "reaction";
   from: Role;
+  id?: string;
   emoji: string;
-  text: string;
+  text?: string;
+};
+
+const BUILTIN_REACTION_IDS = new Set([
+  "love",
+  "hot",
+  "wow",
+  "lol",
+  "wait",
+  "ok",
+  "more",
+  "soft",
+]);
+
+const BUILTIN_REACTION_EMOJI: Record<string, string> = {
+  love: "❤️",
+  hot: "🔥",
+  wow: "😮",
+  lol: "😂",
+  wait: "✋",
+  ok: "✅",
+  more: "😈",
+  soft: "💤",
 };
 
 type ServerMessage =
@@ -155,8 +178,7 @@ export class VibeRoom extends DurableObject<Env> {
         {
           type: "reaction",
           from: attachment.role,
-          emoji: reaction.emoji,
-          text: reaction.text,
+          ...reaction,
         },
         ws,
       );
@@ -196,12 +218,21 @@ export class VibeRoom extends DurableObject<Env> {
 
   private normalizeReaction(
     msg: Record<string, unknown>,
-  ): { emoji: string; text: string } | null {
+  ): { id: string; emoji: string } | { emoji: string; text: string } | null {
+    const id = typeof msg.id === "string" ? msg.id.trim().slice(0, 24) : "";
+    if (id && BUILTIN_REACTION_IDS.has(id)) {
+      return {
+        id,
+        emoji: BUILTIN_REACTION_EMOJI[id] ?? "💬",
+      };
+    }
+
     const emoji =
       typeof msg.emoji === "string" ? msg.emoji.trim().slice(0, 8) : "";
     const text =
       typeof msg.text === "string" ? msg.text.trim().slice(0, 40) : "";
-    if (!emoji && !text) return null;
+    // Custom reactions are literal text only (no id / no translation).
+    if (!text) return null;
     return { emoji: emoji || "💬", text };
   }
 
