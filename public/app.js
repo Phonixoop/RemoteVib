@@ -74,6 +74,19 @@ const STRINGS = {
     "alert.createFail": "Could not create room",
     "alert.invalidCode": "Enter a valid room code",
     "alert.copyPrompt": "Copy this join link",
+    "video.placeholder": "Video appears here when you start a call",
+    "video.start": "Start video",
+    "video.end": "End",
+    "video.mute": "Mute",
+    "video.unmute": "Unmute",
+    "video.camOff": "Camera off",
+    "video.camOn": "Camera on",
+    "video.needPeer": "Wait for the other phone to connect",
+    "video.connecting": "Connecting video…",
+    "video.live": "Video live",
+    "video.ended": "Call ended",
+    "video.permDenied": "Camera/mic permission denied",
+    "video.failed": "Video call failed — try again on the same Wi‑Fi or with a VPN",
   },
   fa: {
     "meta.title": "RemoteVib",
@@ -144,6 +157,19 @@ const STRINGS = {
     "alert.createFail": "ساخت اتاق ممکن نشد",
     "alert.invalidCode": "یک کد اتاق معتبر وارد کنید",
     "alert.copyPrompt": "این لینک ورود را کپی کنید",
+    "video.placeholder": "با شروع تماس، تصویر اینجا دیده می‌شود",
+    "video.start": "شروع ویدیو",
+    "video.end": "پایان",
+    "video.mute": "قطع صدا",
+    "video.unmute": "وصل صدا",
+    "video.camOff": "خاموش کردن دوربین",
+    "video.camOn": "روشن کردن دوربین",
+    "video.needPeer": "صبر کنید تا گوشی دیگر وصل شود",
+    "video.connecting": "در حال اتصال ویدیو…",
+    "video.live": "ویدیو فعال",
+    "video.ended": "تماس پایان یافت",
+    "video.permDenied": "دسترسی به دوربین/میکروفون رد شد",
+    "video.failed": "تماس ویدیویی ناموفق — دوباره روی یک وای‌فای یا با VPN امتحان کنید",
   },
   ru: {
     "meta.title": "RemoteVib",
@@ -215,6 +241,19 @@ const STRINGS = {
     "alert.createFail": "Не удалось создать комнату",
     "alert.invalidCode": "Введите корректный код комнаты",
     "alert.copyPrompt": "Скопируйте эту ссылку для входа",
+    "video.placeholder": "Видео появится здесь, когда вы начнёте звонок",
+    "video.start": "Начать видео",
+    "video.end": "Завершить",
+    "video.mute": "Без звука",
+    "video.unmute": "Включить звук",
+    "video.camOff": "Камера выкл.",
+    "video.camOn": "Камера вкл.",
+    "video.needPeer": "Дождитесь подключения второго телефона",
+    "video.connecting": "Подключение видео…",
+    "video.live": "Видео активно",
+    "video.ended": "Звонок завершён",
+    "video.permDenied": "Нет доступа к камере/микрофону",
+    "video.failed": "Видеозвонок не удался — попробуйте ту же Wi‑Fi или VPN",
   },
 };
 
@@ -256,6 +295,15 @@ const els = {
   reactionText: document.getElementById("reaction-text"),
   btnCancelReaction: document.getElementById("btn-cancel-reaction"),
   reactionToasts: document.getElementById("reaction-toasts"),
+  videoStage: document.getElementById("video-stage"),
+  videoRemote: document.getElementById("video-remote"),
+  videoLocal: document.getElementById("video-local"),
+  videoPlaceholder: document.getElementById("video-placeholder"),
+  videoStatus: document.getElementById("video-status"),
+  btnVideoCall: document.getElementById("btn-video-call"),
+  btnVideoMute: document.getElementById("btn-video-mute"),
+  btnVideoCam: document.getElementById("btn-video-cam"),
+  btnVideoHangup: document.getElementById("btn-video-hangup"),
   modeButtons: [...document.querySelectorAll(".mode")],
   langButtons: [...document.querySelectorAll(".lang-btn")],
 };
@@ -281,6 +329,14 @@ const state = {
   connectionKind: "warn",
   copyResetTimer: null,
   customReactions: [],
+  pc: null,
+  localStream: null,
+  makingOffer: false,
+  ignoreOffer: false,
+  callActive: false,
+  micMuted: false,
+  camOff: false,
+  videoStatusKey: "",
 };
 
 const BUILTIN_REACTIONS = [
@@ -343,6 +399,7 @@ function refreshDynamicCopy() {
   }
   updateHostVibeUi();
   renderReactions();
+  updateVideoUi();
 }
 
 function setLanguage(lang, { persist = false, fromAuto = false } = {}) {
@@ -435,6 +492,12 @@ function setConnectionStatus(keyOrText, kind = "", isKey = true) {
   if (kind) els.statusConnection.classList.add(kind);
 }
 
+function peerConnected() {
+  if (state.role === "host") return Boolean(state.peers?.client);
+  if (state.role === "client") return Boolean(state.peers?.host);
+  return false;
+}
+
 function setPeerStatus(peers, skipAssign = false) {
   if (!skipAssign) state.peers = peers;
   if (state.role === "host") {
@@ -453,6 +516,10 @@ function setPeerStatus(peers, skipAssign = false) {
     els.statusPeer.textContent = t("status.waitingPeer");
     els.statusPeer.classList.remove("live");
     els.statusPeer.classList.add("warn");
+  }
+  updateVideoUi();
+  if (!peerConnected() && (state.callActive || state.pc)) {
+    endCall({ notifyRemote: false, statusKey: "video.ended" });
   }
 }
 
@@ -483,6 +550,8 @@ function connect(room, role) {
   syncLocalVibration();
   resetSessionReactions();
   hideReactionForm();
+  setVideoStatus("");
+  updateVideoUi();
 
   const ws = new WebSocket(wsUrl(room, role));
   state.ws = ws;
@@ -532,6 +601,7 @@ function stopHeartbeat() {
 function disconnect() {
   stopHeartbeat();
   stopVibration();
+  endCall({ notifyRemote: false, statusKey: "" });
   if (state.vibeSyncTimer) {
     clearTimeout(state.vibeSyncTimer);
     state.vibeSyncTimer = null;
@@ -576,6 +646,10 @@ function handleMessage(msg) {
       from: msg.from,
       outgoing: false,
     });
+    return;
+  }
+  if (msg.type === "webrtc") {
+    handleWebrtcSignal(msg);
     return;
   }
   if (msg.type === "error") {
@@ -739,6 +813,274 @@ function showReactionToast({ emoji, text, from, outgoing }) {
 
 function clearReactionToasts() {
   els.reactionToasts.replaceChildren();
+}
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+  ],
+};
+
+function sendWebrtc(payload) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  state.ws.send(JSON.stringify({ type: "webrtc", ...payload }));
+}
+
+function setVideoStatus(key, isKey = true) {
+  state.videoStatusKey = isKey ? key : "";
+  els.videoStatus.textContent = key ? (isKey ? t(key) : key) : "";
+}
+
+function updateVideoUi() {
+  const live = state.callActive;
+  const canStart = peerConnected() && !live && !state.pc;
+  els.btnVideoCall.classList.toggle("hidden", live || Boolean(state.pc));
+  els.btnVideoCall.disabled = !peerConnected();
+  els.btnVideoHangup.classList.toggle("hidden", !live && !state.pc);
+  els.btnVideoMute.classList.toggle("hidden", !live);
+  els.btnVideoCam.classList.toggle("hidden", !live);
+  els.videoStage.dataset.state = live ? "live" : state.pc ? "connecting" : "idle";
+  els.videoPlaceholder.classList.toggle("hidden", live || Boolean(els.videoRemote.srcObject));
+
+  els.btnVideoMute.textContent = state.micMuted ? t("video.unmute") : t("video.mute");
+  els.btnVideoMute.setAttribute("aria-pressed", String(state.micMuted));
+  els.btnVideoMute.setAttribute(
+    "data-i18n",
+    state.micMuted ? "video.unmute" : "video.mute",
+  );
+
+  els.btnVideoCam.textContent = state.camOff ? t("video.camOn") : t("video.camOff");
+  els.btnVideoCam.setAttribute("aria-pressed", String(state.camOff));
+  els.btnVideoCam.setAttribute(
+    "data-i18n",
+    state.camOff ? "video.camOn" : "video.camOff",
+  );
+
+  if (state.videoStatusKey) {
+    els.videoStatus.textContent = t(state.videoStatusKey);
+  }
+}
+
+async function ensureLocalMedia() {
+  if (state.localStream) return state.localStream;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: {
+        facingMode: "user",
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+      },
+    });
+    state.localStream = stream;
+    els.videoLocal.srcObject = stream;
+    for (const track of stream.getAudioTracks()) {
+      track.enabled = !state.micMuted;
+    }
+    for (const track of stream.getVideoTracks()) {
+      track.enabled = !state.camOff;
+    }
+    return stream;
+  } catch (err) {
+    const denied =
+      err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+    setVideoStatus(denied ? "video.permDenied" : "video.failed");
+    throw err;
+  }
+}
+
+function stopLocalMedia() {
+  if (state.localStream) {
+    for (const track of state.localStream.getTracks()) {
+      track.stop();
+    }
+    state.localStream = null;
+  }
+  els.videoLocal.srcObject = null;
+  els.videoRemote.srcObject = null;
+}
+
+async function ensurePeerConnection() {
+  if (state.pc) return state.pc;
+
+  const pc = new RTCPeerConnection(ICE_SERVERS);
+  state.pc = pc;
+
+  pc.onicecandidate = (event) => {
+    sendWebrtc({
+      kind: "ice",
+      candidate: event.candidate
+        ? {
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid,
+            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            usernameFragment: event.candidate.usernameFragment,
+          }
+        : null,
+    });
+  };
+
+  pc.ontrack = (event) => {
+    const [stream] = event.streams;
+    els.videoRemote.srcObject = stream || new MediaStream([event.track]);
+    els.videoPlaceholder.classList.add("hidden");
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (state.pc !== pc) return;
+    const cs = pc.connectionState;
+    if (cs === "connected") {
+      state.callActive = true;
+      setVideoStatus("video.live");
+      updateVideoUi();
+    } else if (cs === "failed") {
+      endCall({ notifyRemote: true, statusKey: "video.failed" });
+    } else if (cs === "closed") {
+      endCall({ notifyRemote: false, statusKey: "video.ended" });
+    }
+  };
+
+  try {
+    const stream = await ensureLocalMedia();
+    for (const track of stream.getTracks()) {
+      pc.addTrack(track, stream);
+    }
+  } catch (err) {
+    try {
+      pc.close();
+    } catch {
+      // ignore
+    }
+    if (state.pc === pc) state.pc = null;
+    throw err;
+  }
+
+  return pc;
+}
+
+async function startCall() {
+  if (!peerConnected()) {
+    setVideoStatus("video.needPeer");
+    return;
+  }
+  if (state.pc || state.callActive) return;
+
+  try {
+    setVideoStatus("video.connecting");
+    updateVideoUi();
+    const pc = await ensurePeerConnection();
+    state.makingOffer = true;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    sendWebrtc({ kind: "offer", sdp: pc.localDescription });
+    updateVideoUi();
+  } catch {
+    endCall({ notifyRemote: false, statusKey: state.videoStatusKey || "video.failed" });
+  } finally {
+    state.makingOffer = false;
+  }
+}
+
+function endCall({ notifyRemote = true, statusKey = "video.ended" } = {}) {
+  if (notifyRemote && state.ws?.readyState === WebSocket.OPEN && (state.pc || state.callActive)) {
+    sendWebrtc({ kind: "hangup" });
+  }
+
+  if (state.pc) {
+    try {
+      state.pc.onicecandidate = null;
+      state.pc.ontrack = null;
+      state.pc.onconnectionstatechange = null;
+      state.pc.close();
+    } catch {
+      // ignore
+    }
+    state.pc = null;
+  }
+
+  stopLocalMedia();
+  state.callActive = false;
+  state.makingOffer = false;
+  state.ignoreOffer = false;
+  state.micMuted = false;
+  state.camOff = false;
+  setVideoStatus(statusKey);
+  updateVideoUi();
+}
+
+async function handleWebrtcSignal(msg) {
+  if (!msg || msg.from === state.role) return;
+
+  if (msg.kind === "hangup") {
+    endCall({ notifyRemote: false, statusKey: "video.ended" });
+    return;
+  }
+
+  try {
+    const polite = state.role === "host";
+
+    if (msg.kind === "offer") {
+      const offerCollision = state.makingOffer || state.pc?.signalingState !== "stable";
+      state.ignoreOffer = !polite && offerCollision;
+      if (state.ignoreOffer) return;
+
+      setVideoStatus("video.connecting");
+      const pc = await ensurePeerConnection();
+      if (offerCollision) {
+        await Promise.all([
+          pc.setLocalDescription({ type: "rollback" }),
+          pc.setRemoteDescription(msg.sdp),
+        ]);
+      } else {
+        await pc.setRemoteDescription(msg.sdp);
+      }
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendWebrtc({ kind: "answer", sdp: pc.localDescription });
+      updateVideoUi();
+      return;
+    }
+
+    if (msg.kind === "answer") {
+      if (!state.pc) return;
+      await state.pc.setRemoteDescription(msg.sdp);
+      return;
+    }
+
+    if (msg.kind === "ice") {
+      if (!state.pc || state.ignoreOffer) return;
+      try {
+        await state.pc.addIceCandidate(msg.candidate);
+      } catch {
+        if (!state.ignoreOffer) throw new Error("ice failed");
+      }
+    }
+  } catch {
+    setVideoStatus("video.failed");
+    endCall({ notifyRemote: true, statusKey: "video.failed" });
+  }
+}
+
+function toggleMic() {
+  state.micMuted = !state.micMuted;
+  if (state.localStream) {
+    for (const track of state.localStream.getAudioTracks()) {
+      track.enabled = !state.micMuted;
+    }
+  }
+  updateVideoUi();
+}
+
+function toggleCam() {
+  state.camOff = !state.camOff;
+  if (state.localStream) {
+    for (const track of state.localStream.getVideoTracks()) {
+      track.enabled = !state.camOff;
+    }
+  }
+  updateVideoUi();
 }
 
 function applyControl(next, fromNetwork) {
@@ -1113,6 +1455,22 @@ els.btnCopy.addEventListener("click", async () => {
 
 els.btnEnableVibe.addEventListener("click", () => {
   enableVibration(els.vibeHint);
+});
+
+els.btnVideoCall.addEventListener("click", () => {
+  startCall();
+});
+
+els.btnVideoHangup.addEventListener("click", () => {
+  endCall({ notifyRemote: true, statusKey: "video.ended" });
+});
+
+els.btnVideoMute.addEventListener("click", () => {
+  toggleMic();
+});
+
+els.btnVideoCam.addEventListener("click", () => {
+  toggleCam();
 });
 
 els.btnAddReaction.addEventListener("click", () => {

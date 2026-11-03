@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` on two devices (or two browser tabs). Host a room on one, join with the code on the other.
+Open `http://localhost:3000` on two devices (or two browser tabs). Host a room on one, join with the code on the other. After both are connected, either side can tap **Start video** (WebRTC; camera/mic permission required).
 
 ## Deploy on Railway
 
@@ -37,6 +37,8 @@ Health check: `GET /health` → `{ "ok": true }`.
 ## Iran ↔ Russia notes
 
 Both phones must reach the same host over HTTPS and WSS. If either side cannot open the page or WebSocket, try another EU host with the same Node app (Fly.io Amsterdam/Frankfurt, Hetzner, etc.). Avoid putting Cloudflare orange-cloud in front for this use case.
+
+Video uses peer-to-peer WebRTC with public STUN. Strict NATs or blocked STUN (common across some Iran/Russia paths) can prevent media even when the room works — a TURN server would be needed for those cases.
 
 ## Notes
 

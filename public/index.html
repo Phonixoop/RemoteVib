@@ -135,6 +135,43 @@
           </span>
         </div>
 
+        <div id="video-panel" class="video-panel">
+          <div class="video-stage" id="video-stage" data-state="idle">
+            <video id="video-remote" class="video-remote" autoplay playsinline></video>
+            <video id="video-local" class="video-local" autoplay playsinline muted></video>
+            <p class="video-placeholder" id="video-placeholder" data-i18n="video.placeholder">
+              Video appears here when you start a call
+            </p>
+            <p class="video-status" id="video-status" aria-live="polite"></p>
+          </div>
+          <div class="video-actions">
+            <button type="button" class="btn btn-primary" id="btn-video-call" data-i18n="video.start">
+              Start video
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost hidden"
+              id="btn-video-mute"
+              aria-pressed="false"
+              data-i18n="video.mute"
+            >
+              Mute
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost hidden"
+              id="btn-video-cam"
+              aria-pressed="false"
+              data-i18n="video.camOff"
+            >
+              Camera off
+            </button>
+            <button type="button" class="btn btn-ghost hidden" id="btn-video-hangup" data-i18n="video.end">
+              End
+            </button>
+          </div>
+        </div>
+
         <div id="reactions-panel" class="reactions-panel">
           <div class="reactions-head">
             <p class="reactions-label" data-i18n="react.title">Quick reactions</p>

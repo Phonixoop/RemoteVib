@@ -152,7 +152,80 @@ export class Room {
         },
         ws,
       );
+      return;
     }
+
+    if (data.type === "webrtc") {
+      const signal = this.normalizeWebrtc(data);
+      if (!signal) {
+        this.send(ws, { type: "error", message: "Invalid webrtc signal" });
+        return;
+      }
+      this.broadcast(
+        {
+          type: "webrtc",
+          from: attachment.role,
+          ...signal,
+        },
+        ws,
+      );
+    }
+  }
+
+  /** @param {Record<string, unknown>} msg */
+  normalizeWebrtc(msg) {
+    const kind = typeof msg.kind === "string" ? msg.kind : "";
+    if (
+      kind !== "offer" &&
+      kind !== "answer" &&
+      kind !== "ice" &&
+      kind !== "hangup"
+    ) {
+      return null;
+    }
+
+    /** @type {Record<string, unknown>} */
+    const out = { kind };
+
+    if (kind === "offer" || kind === "answer") {
+      const sdp = msg.sdp;
+      if (!sdp || typeof sdp !== "object") return null;
+      const type = typeof sdp.type === "string" ? sdp.type : "";
+      const sdpText = typeof sdp.sdp === "string" ? sdp.sdp : "";
+      if ((type !== "offer" && type !== "answer") || !sdpText) return null;
+      if (sdpText.length > 64_000) return null;
+      out.sdp = { type, sdp: sdpText };
+      return out;
+    }
+
+    if (kind === "ice") {
+      const candidate = msg.candidate;
+      if (candidate == null) {
+        out.candidate = null;
+        return out;
+      }
+      if (typeof candidate !== "object") return null;
+      const cand = typeof candidate.candidate === "string" ? candidate.candidate : "";
+      if (cand.length > 2048) return null;
+      out.candidate = {
+        candidate: cand,
+        sdpMid:
+          typeof candidate.sdpMid === "string" || candidate.sdpMid == null
+            ? candidate.sdpMid
+            : String(candidate.sdpMid),
+        sdpMLineIndex:
+          typeof candidate.sdpMLineIndex === "number"
+            ? candidate.sdpMLineIndex
+            : null,
+        usernameFragment:
+          typeof candidate.usernameFragment === "string"
+            ? candidate.usernameFragment
+            : undefined,
+      };
+      return out;
+    }
+
+    return out;
   }
 
   /** @param {Record<string, unknown>} msg */

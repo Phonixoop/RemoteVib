@@ -50,11 +50,27 @@ const BUILTIN_REACTION_EMOJI: Record<string, string> = {
   soft: "💤",
 };
 
+type WebrtcKind = "offer" | "answer" | "ice" | "hangup";
+
+type WebrtcMessage = {
+  type: "webrtc";
+  from: Role;
+  kind: WebrtcKind;
+  sdp?: { type: string; sdp: string };
+  candidate?: {
+    candidate: string;
+    sdpMid: string | null;
+    sdpMLineIndex: number | null;
+    usernameFragment?: string;
+  } | null;
+};
+
 type ServerMessage =
   | { type: "welcome"; role: Role; room: string; state: ControlState; peers: PeerStatus }
   | { type: "peer"; peers: PeerStatus }
   | { type: "control"; state: ControlState }
   | ReactionMessage
+  | WebrtcMessage
   | { type: "error"; message: string };
 
 type PeerStatus = {
@@ -182,6 +198,23 @@ export class VibeRoom extends DurableObject<Env> {
         },
         ws,
       );
+      return;
+    }
+
+    if (msg.type === "webrtc") {
+      const signal = this.normalizeWebrtc(msg);
+      if (!signal) {
+        this.send(ws, { type: "error", message: "Invalid webrtc signal" });
+        return;
+      }
+      this.broadcast(
+        {
+          type: "webrtc",
+          from: attachment.role,
+          ...signal,
+        },
+        ws,
+      );
     }
   }
 
@@ -214,6 +247,58 @@ export class VibeRoom extends DurableObject<Env> {
       host: this.ctx.getWebSockets("host").length > 0,
       client: this.ctx.getWebSockets("client").length > 0,
     };
+  }
+
+  private normalizeWebrtc(
+    msg: Record<string, unknown>,
+  ): Omit<WebrtcMessage, "type" | "from"> | null {
+    const kind = typeof msg.kind === "string" ? msg.kind : "";
+    if (
+      kind !== "offer" &&
+      kind !== "answer" &&
+      kind !== "ice" &&
+      kind !== "hangup"
+    ) {
+      return null;
+    }
+
+    if (kind === "offer" || kind === "answer") {
+      const sdp = msg.sdp;
+      if (!sdp || typeof sdp !== "object") return null;
+      const sdpObj = sdp as Record<string, unknown>;
+      const type = typeof sdpObj.type === "string" ? sdpObj.type : "";
+      const sdpText = typeof sdpObj.sdp === "string" ? sdpObj.sdp : "";
+      if ((type !== "offer" && type !== "answer") || !sdpText) return null;
+      if (sdpText.length > 64_000) return null;
+      return { kind, sdp: { type, sdp: sdpText } };
+    }
+
+    if (kind === "ice") {
+      const candidate = msg.candidate;
+      if (candidate == null) return { kind, candidate: null };
+      if (typeof candidate !== "object") return null;
+      const c = candidate as Record<string, unknown>;
+      const cand = typeof c.candidate === "string" ? c.candidate : "";
+      if (cand.length > 2048) return null;
+      return {
+        kind,
+        candidate: {
+          candidate: cand,
+          sdpMid:
+            typeof c.sdpMid === "string" || c.sdpMid == null
+              ? (c.sdpMid as string | null)
+              : String(c.sdpMid),
+          sdpMLineIndex:
+            typeof c.sdpMLineIndex === "number" ? c.sdpMLineIndex : null,
+          usernameFragment:
+            typeof c.usernameFragment === "string"
+              ? c.usernameFragment
+              : undefined,
+        },
+      };
+    }
+
+    return { kind };
   }
 
   private normalizeReaction(
