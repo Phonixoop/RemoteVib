@@ -2,15 +2,26 @@
   "name": "remotevib",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Remote phone vibration control over WebSockets",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types",
-    "check": "tsc --noEmit"
+    "dev": "node --watch server/index.js",
+    "start": "node server/index.js",
+    "check": "tsc --noEmit",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261101.1",
+    "@types/node": "^22.18.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.9.3",
     "wrangler": "^4.42.0"
   }
