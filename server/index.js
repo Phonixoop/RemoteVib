@@ -10,6 +10,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 const PORT = Number(process.env.PORT) || 3000;
 
+/** @param {string | undefined} value */
+export function envFlag(value) {
+  if (!value) return false;
+  const v = value.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+const ENABLE_VIDEO = envFlag(process.env.ENABLE_VIDEO);
+
 const ROOM_RE = /^[A-Z0-9]{4,8}$/;
 const PERSIAN_COUNTRIES = new Set(["IR", "AF", "TJ"]);
 const RUSSIAN_COUNTRIES = new Set(["RU", "BY", "KZ", "KG", "UA"]);
@@ -151,6 +160,11 @@ function handleHttp(req, res) {
 
   if (url.pathname === "/api/create-room" && req.method === "POST") {
     sendJson(res, 200, { room: roomCode() });
+    return;
+  }
+
+  if (url.pathname === "/api/config" && req.method === "GET") {
+    sendJson(res, 200, { video: ENABLE_VIDEO });
     return;
   }
 

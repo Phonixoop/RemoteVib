@@ -1,3 +1,4 @@
+import { envFlag } from "./flags";
 import { VibeRoom } from "./room";
 
 export { VibeRoom };
@@ -71,6 +72,10 @@ export default {
 
     if (url.pathname === "/api/create-room" && request.method === "POST") {
       return Response.json({ room: roomCode() });
+    }
+
+    if (url.pathname === "/api/config" && request.method === "GET") {
+      return Response.json({ video: envFlag(env.ENABLE_VIDEO) });
     }
 
     if (url.pathname === "/ws") {

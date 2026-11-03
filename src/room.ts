@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { envFlag } from "./flags";
 
 export type Role = "host" | "client";
 
@@ -202,6 +203,10 @@ export class VibeRoom extends DurableObject<Env> {
     }
 
     if (msg.type === "webrtc") {
+      if (!envFlag(this.env.ENABLE_VIDEO)) {
+        this.send(ws, { type: "error", message: "Video calls are disabled" });
+        return;
+      }
       const signal = this.normalizeWebrtc(msg);
       if (!signal) {
         this.send(ws, { type: "error", message: "Invalid webrtc signal" });

@@ -304,6 +304,7 @@ const els = {
   btnVideoMute: document.getElementById("btn-video-mute"),
   btnVideoCam: document.getElementById("btn-video-cam"),
   btnVideoHangup: document.getElementById("btn-video-hangup"),
+  videoPanel: document.getElementById("video-panel"),
   modeButtons: [...document.querySelectorAll(".mode")],
   langButtons: [...document.querySelectorAll(".lang-btn")],
 };
@@ -337,6 +338,7 @@ const state = {
   micMuted: false,
   camOff: false,
   videoStatusKey: "",
+  videoEnabled: false,
 };
 
 const BUILTIN_REACTIONS = [
@@ -833,9 +835,21 @@ function setVideoStatus(key, isKey = true) {
   els.videoStatus.textContent = key ? (isKey ? t(key) : key) : "";
 }
 
+function applyVideoFeature() {
+  els.videoPanel.classList.toggle("hidden", !state.videoEnabled);
+  if (!state.videoEnabled && (state.pc || state.callActive)) {
+    endCall({ notifyRemote: false, statusKey: "" });
+  }
+  updateVideoUi();
+}
+
 function updateVideoUi() {
+  if (!state.videoEnabled) {
+    els.videoPanel.classList.add("hidden");
+    return;
+  }
+
   const live = state.callActive;
-  const canStart = peerConnected() && !live && !state.pc;
   els.btnVideoCall.classList.toggle("hidden", live || Boolean(state.pc));
   els.btnVideoCall.disabled = !peerConnected();
   els.btnVideoHangup.classList.toggle("hidden", !live && !state.pc);
@@ -961,6 +975,7 @@ async function ensurePeerConnection() {
 }
 
 async function startCall() {
+  if (!state.videoEnabled) return;
   if (!peerConnected()) {
     setVideoStatus("video.needPeer");
     return;
@@ -1011,6 +1026,7 @@ function endCall({ notifyRemote = true, statusKey = "video.ended" } = {}) {
 }
 
 async function handleWebrtcSignal(msg) {
+  if (!state.videoEnabled) return;
   if (!msg || msg.from === state.role) return;
 
   if (msg.kind === "hangup") {
@@ -1317,6 +1333,18 @@ async function detectLocale() {
   }
 }
 
+async function loadConfig() {
+  try {
+    const res = await fetch("/api/config");
+    if (!res.ok) return;
+    const data = await res.json();
+    state.videoEnabled = Boolean(data?.video);
+  } catch {
+    state.videoEnabled = false;
+  }
+  applyVideoFeature();
+}
+
 function initPrefs() {
   const savedLang = localStorage.getItem(LANG_KEY);
   const savedTheme = localStorage.getItem(THEME_KEY);
@@ -1554,4 +1582,5 @@ function bootFromQuery() {
 }
 
 initPrefs();
+loadConfig();
 bootFromQuery();

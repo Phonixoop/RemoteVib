@@ -23,6 +23,9 @@
       "storage": "sqlite"
     }
   },
+  "vars": {
+    "ENABLE_VIDEO": "false"
+  },
   "observability": {
     "enabled": true,
     "traces": {

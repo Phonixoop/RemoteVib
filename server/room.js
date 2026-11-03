@@ -37,6 +37,13 @@ const DEFAULT_STATE = {
 
 const MODES = ["continuous", "pulse", "wave", "heartbeat", "staccato"];
 
+function videoEnabled() {
+  const value = process.env.ENABLE_VIDEO;
+  if (!value) return false;
+  const v = value.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 export class Room {
   /** @param {string} code */
   constructor(code) {
@@ -156,6 +163,10 @@ export class Room {
     }
 
     if (data.type === "webrtc") {
+      if (!videoEnabled()) {
+        this.send(ws, { type: "error", message: "Video calls are disabled" });
+        return;
+      }
       const signal = this.normalizeWebrtc(data);
       if (!signal) {
         this.send(ws, { type: "error", message: "Invalid webrtc signal" });

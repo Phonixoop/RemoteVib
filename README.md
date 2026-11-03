@@ -17,14 +17,23 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` on two devices (or two browser tabs). Host a room on one, join with the code on the other. After both are connected, either side can tap **Start video** (WebRTC; camera/mic permission required).
+Open `http://localhost:3000` on two devices (or two browser tabs). Host a room on one, join with the code on the other.
+
+Video calls are **off by default**. Enable with:
+
+```bash
+ENABLE_VIDEO=true npm run dev
+```
+
+When enabled, either side can tap **Start video** after both phones connect (WebRTC; camera/mic permission required).
 
 ## Deploy on Railway
 
 1. Push this branch and create a Railway project from the GitHub repo (select branch `railway-deploy`).
 2. Railway builds via the included `Dockerfile` (`railway.toml`).
 3. Set the service **region to Europe** (EU) — best default for Iran ↔ Russia routes.
-4. Deploy. Open the public HTTPS URL on both phones (no Cloudflare proxy in front).
+4. Optional: set variable `ENABLE_VIDEO=true` to show video calling (default off).
+5. Deploy. Open the public HTTPS URL on both phones (no Cloudflare proxy in front).
 
 Local equivalent:
 
